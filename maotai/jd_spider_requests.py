@@ -367,7 +367,7 @@ class JdSeckill(object):
 
     def make_reserve(self):
         """商品预约"""
-        logger.info('商品名称:{}'.format(self.get_sku_title()))
+        logger.info('商品名称:{}'.format(self.get_sku_title()[:50]))
         url = 'https://yushou.jd.com/youshouinfo.action?'
         payload = {
             'callback': 'fetchJSON',
@@ -464,7 +464,7 @@ class JdSeckill(object):
     def request_seckill_url(self):
         """访问商品的抢购链接（用于设置cookie等"""
         logger.info('用户:{}'.format(self.get_username()))
-        logger.info('商品名称:{}'.format(self.get_sku_title()))
+        logger.info('商品名称:{}'.format(self.get_sku_title()[:10]))
         self.timers.start()
         self.seckill_url[self.sku_id] = self.get_seckill_url()
         logger.info('访问商品的抢购连接...')
@@ -516,7 +516,8 @@ class JdSeckill(object):
         try:
             resp_json = parse_json(resp.text)
         except Exception:
-            raise SKException('抢购失败，返回信息:{}'.format(resp.text[0: 128]))
+            logger.info('抢购失败，返回信息:{}'.format(resp.text[0: 128]))
+            # raise SKException('抢购失败，返回信息:{}'.format(resp.text[0: 128]))
 
         return resp_json
 
@@ -528,13 +529,19 @@ class JdSeckill(object):
         # 获取用户秒杀初始化信息
         self.seckill_init_info[self.sku_id] = self._get_seckill_init_info()
         init_info = self.seckill_init_info.get(self.sku_id)
+        if init_info is None:
+            return False
+        logger.info(f"输出init_info:{init_info}")
+        # addr = {'addressDetail': '谭家岭东路2号 (审批服务中心)', 'addressName': '单位', 'areaCode': '86', 'cityId': 1158, 'cityName': '宁波市', 'countyId': 46345, 'countyName': '余姚市', 'defaultAddress': True, 'email': '', 'id': 843945282, 'mobile': '134****9880', 'mobileKey': '93b9f23b73966c2ac40fc3f9035b95b6', 'name': '陈云', 'overseas': 0, 'phone': '', 'postCode': '', 'provinceId': 15, 'provinceName': '浙江', 'townId': 52176, 'townName': '城区', 'yuyueAddress': False}
         default_address = init_info['addressList'][0]  # 默认地址dict
+        # default_address = addr  # 默认地址dict
         invoice_info = init_info.get('invoiceInfo', {})  # 默认发票信息dict, 有可能不返回
         token = init_info['token']
         data = {
             'skuId': self.sku_id,
             'num': self.seckill_num,
             'addressId': default_address['id'],
+            # 'addressId': 843945282,
             'yuShou': 'true',
             'isModifyAddress': 'false',
             'name': default_address['name'],
@@ -566,7 +573,6 @@ class JdSeckill(object):
             'token': token,
             'pru': ''
         }
-
         return data
 
     def submit_seckill_order(self):
@@ -578,9 +584,14 @@ class JdSeckill(object):
             'skuId': self.sku_id,
         }
         try:
-            self.seckill_order_data[self.sku_id] = self._get_seckill_order_data()
+            res = self._get_seckill_order_data()
+            if res is None:
+                logger.info('获取初始化信息为空，跳过')
+                return False
+            self.seckill_order_data[self.sku_id] = res
         except Exception as e:
-            logger.info('抢购失败，无法获取生成订单的基本信息，接口返回:【{}】'.format(str(e)))
+            print("one:", e.args)
+            logger.info('抢购失败，无法获取生成订单的基本信息，接口返回:【{}】'.format(str(e.args)))
             return False
 
         logger.info('提交抢购订单...')
@@ -619,8 +630,9 @@ class JdSeckill(object):
                 send_wechat(success_message)
             return True
         else:
-            logger.info('抢购失败，返回信息:{}'.format(resp_json))
+            logger.info('抢购失败，返回信息:')
             if global_config.getRaw('messenger', 'enable') == 'true':
-                error_message = '抢购失败，返回信息:{}'.format(resp_json)
+                error_message = '抢购失败，返回信息'
+                # error_message = '抢购失败，返回信息:{}'.format(resp_json[0:128])
                 send_wechat(error_message)
             return False
