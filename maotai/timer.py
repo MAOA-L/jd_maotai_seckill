@@ -41,10 +41,6 @@ class Timer(object):
                 "%Y-%m-%d %H:%M:%S.%f")
 
         # self.buy_time = buy_time_config
-        self.buy_time = datetime.strptime(
-            localtime.tm_year.__str__() + '-' + localtime.tm_mon.__str__() + '-' + (
-                    localtime.tm_mday ).__str__() + ' ' + buy_time_everyday,
-            "%Y-%m-%d %H:%M:%S.%f")
         print("购买时间：{}".format(self.buy_time))
 
         self.buy_time_ms = int(time.mktime(self.buy_time.timetuple()) * 1000.0 + self.buy_time.microsecond / 1000)
